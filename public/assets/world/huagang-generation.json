@@ -52,7 +52,9 @@
     {
       "file": "huagang-pano.png",
       "bytes": 13293758,
-      "sha256": "a46d558e1469b67cabdb7199f089560a4c27c32896eb42e1f9f3bad397011c57"
+      "sha256": "a46d558e1469b67cabdb7199f089560a4c27c32896eb42e1f9f3bad397011c57",
+      "delivery": "Original panorama preserved in source repository; not used by the website viewer or included in the deployment archive.",
+      "repositoryPath": "public/assets/world/huagang-pano.png"
     }
   ],
   "license": "CC BY-SA 4.0",
