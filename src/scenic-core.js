@@ -9,20 +9,31 @@ export const ANGLES = [
   {id:'inside', name:'内部 / 近景', hint:'入口、内部或关键细节'},
 ];
 export const copy = value => structuredClone(value);
+const PILOT_ASSET = Object.freeze({worldId:'55dcc5ef-342c-4548-b937-6ffe6fb330ed',referenceUrl:'/assets/real/huagang.jpg'});
 export function newSpot(id, x=.5, y=.5) {
   return {id,name:'新的景点',description:'',x,y,photos:{},revision:0,confirmedRevision:null,world:null};
 }
 export function createScenicState() {
   const spots=PLACES.map(p=>({...newSpot(p.id,p.x,p.y),...p,photos:{front:realPhoto(p.id,p.photoName)}}));
   spots[0].world={kind:'pilot',label:'御碑亭实拍试点',revision:0};
+  spots[0].pilotAsset=copy(PILOT_ASSET);
   const draft={title:'西湖 · 六处风景',map:{url:'/assets/scenic/garden-map.png',name:'西湖灵感游览图 · AI 插画',custom:false},spots};
   const published=copy(draft);
   for(const {id,name} of ANGLES.filter(a=>a.id!=='front'))published.spots[0].photos[id]={...completionPhoto(id,name),accepted:true};
-  return {schema:5,draft,published,publishedAt:null,publishNumber:1};
+  return {schema:6,draft,published,publishedAt:null,publishNumber:1};
 }
 export function upgradeScenicState(state){
-  if(state.schema===5)return state;
+  if(state.schema===6)return state;
   const seed=createScenicState();
+  // The existing real asset is bound to its source photo, independently of mock jobs.
+  const bindPilot=()=>{
+    for(const key of ['draft','published']){
+      const s=state[key].spots.find(s=>s.id===PILOT_ID);
+      if(s&&canCompleteDemo(s))s.pilotAsset=copy(PILOT_ASSET);
+    }
+    state.schema=6;return state;
+  };
+  if(state.schema===5)return bindPilot();
   if(state.schema===3||state.schema===4){
     for(const key of ['draft','published']){
       const s=state[key].spots.find(s=>s.id===PILOT_ID);
@@ -36,7 +47,7 @@ export function upgradeScenicState(state){
       const s=state.published.spots.find(s=>s.id===PILOT_ID);
       if(s&&canCompleteDemo(s))for(const id of ['back','top'])if(!s.photos[id])s.photos[id]=copy(seed.published.spots[0].photos[id]);
     }
-    state.schema=5;return state;
+    return bindPilot();
   }
   // Keep earlier work accessible as a backup, and never overwrite uploaded material or custom pins.
   const ids=new Set(['pavilion','willow','bridge','lotus','corridor','landing']);
@@ -44,7 +55,7 @@ export function upgradeScenicState(state){
   if(untouched(state.draft)&&untouched(state.published)){
     seed.previousDemo=copy(state);return seed;
   }
-  state.schema=5;return state;
+  return bindPilot();
 }
 export function canCompleteDemo(spot){return spot.id===PILOT_ID&&spot.photos.front?.url==='/assets/real/huagang.jpg';}
 export function touchSpot(spot) {
@@ -90,6 +101,9 @@ export function publishScenic(state) {
   state.published=copy(draft);state.publishNumber++;state.publishedAt=new Date().toISOString();return state;
 }
 export function visitorExperience(spot) {
-  // A mocked job is never presented as a world generated from this spot's images.
-  return spot.world?.kind==='pilot'&&spot.id===PILOT_ID&&spot.world.revision===spot.revision?'world':'gallery';
+  // Supplemental photo review and mocked jobs do not replace this pre-generated asset.
+  // Replacing or removing the actual input photo must sever its visitor association.
+  return spot.id===PILOT_ID&&spot.pilotAsset?.worldId===PILOT_ASSET.worldId&&
+    spot.pilotAsset.referenceUrl===PILOT_ASSET.referenceUrl&&
+    spot.photos.front?.kind==='real'&&spot.photos.front.url===PILOT_ASSET.referenceUrl?'world':'gallery';
 }

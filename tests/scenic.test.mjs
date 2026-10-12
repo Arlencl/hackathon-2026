@@ -29,10 +29,12 @@ test('removing an accepted angle blocks confirmation until that angle is replace
  const {s}=reviewed();removePhoto(s,'inside');assert.throws(()=>confirmSpot(s),/补齐/);
  completeDemo(s);assert.equal(s.photos.inside.accepted,false);assert.throws(()=>confirmSpot(s),/逐张/);
 });
-test('each spot owns its assets; a simulated world never redirects visitors into the unrelated sample',()=>{
+test('publishing six reviewed views and a mock job preserves the real pilot and isolates other spots',()=>{
  const {state,s}=reviewed();const other=structuredClone(state.draft.spots[1]);
  createDemoWorld(s,s.revision);publishScenic(state);
- assert.deepEqual(state.draft.spots[1],other);assert.equal(visitorExperience(state.published.spots[0]),'gallery');
+ assert.deepEqual(state.draft.spots[1],other);assert.equal(visitorExperience(state.published.spots[0]),'world');
+ assert.equal(Object.keys(state.published.spots[0].photos).length,6);
+ assert.equal(visitorExperience(state.published.spots[1]),'gallery');
  assert.equal(visitorExperience(createScenicState().published.spots[0]),'world');
 });
 test('empty maps and points without usable metadata cannot publish',()=>{
@@ -49,12 +51,25 @@ test('migrating an old custom project preserves uploads and user pins',()=>{
  const state=createScenicState();state.schema=2;state.draft.map.custom=true;
  state.draft.spots.push({...newSpot('user-place'),name:'我的景点',photos:{front:{url:'data:image/png;base64,uploaded',kind:'upload'}}});
  const before=structuredClone(state.draft);const next=upgradeScenicState(state);
- assert.equal(next.schema,5);assert.deepEqual(next.draft,before);
+ assert.equal(next.schema,6);assert.deepEqual(next.draft,before);
 });
-test('only a matching, current pilot world can be offered to visitors',()=>{
- const state=createScenicState(),s=state.draft.spots[0];s.world={kind:'pilot',revision:s.revision};
- assert.equal(visitorExperience(s),'world');s.world.revision++;assert.equal(visitorExperience(s),'gallery');
- const other=state.draft.spots[1];other.world={kind:'pilot',revision:other.revision};assert.equal(visitorExperience(other),'gallery');
+test('the pilot remains available after supplement edits but never after changing its source photo',()=>{
+ const state=createScenicState(),s=state.draft.spots[0];
+ putPhoto(s,'back',{url:'/back.jpg',kind:'upload',accepted:true});
+ assert.equal(s.world,null);assert.equal(visitorExperience(s),'world');
+ const other=state.draft.spots[1];other.pilotAsset=structuredClone(s.pilotAsset);
+ assert.equal(visitorExperience(other),'gallery');
+ putPhoto(s,'front',{url:'data:image/jpeg;base64,changed',kind:'upload',accepted:true});
+ assert.equal(visitorExperience(s),'gallery');removePhoto(s,'front');assert.equal(visitorExperience(s),'gallery');
+});
+test('migration restores a real pilot hidden by a mock job without replacing published photos',()=>{
+ const {state,s}=reviewed();createDemoWorld(s,s.revision);publishScenic(state);state.schema=5;
+ delete state.draft.spots[0].pilotAsset;delete state.published.spots[0].pilotAsset;
+ delete state.published.spots[0].photos.back;delete state.published.spots[0].photos.top;
+ const photos=structuredClone(state.published.spots[0].photos);
+ const next=upgradeScenicState(state);
+ assert.equal(visitorExperience(next.published.spots[0]),'world');
+ assert.deepEqual(next.published.spots[0].photos,photos);assert.equal(next.published.spots[0].world.kind,'demo');
 });
 
 test('back and top are separate review requirements and older confirmation is invalidated',()=>{

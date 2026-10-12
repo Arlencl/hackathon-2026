@@ -12,7 +12,7 @@ export async function loadScenic() {
   try {
     const d=await db();
     const value=await new Promise((resolve,reject)=>{const req=d.transaction('workspace').objectStore('workspace').get('current');req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error);});
-    state=[1,2,3,4,5].includes(value?.schema)&&value.draft?.spots&&value.published?.spots?upgradeScenicState(value):createScenicState();
+    state=[1,2,3,4,5,6].includes(value?.schema)&&value.draft?.spots&&value.published?.spots?upgradeScenicState(value):createScenicState();
   }catch{state=createScenicState();}
   return state;
 }
